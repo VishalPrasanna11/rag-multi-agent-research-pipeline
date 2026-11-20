@@ -14,8 +14,10 @@ class RunMode(str, Enum):
 class ResearchRequest(BaseModel):
     ticker: str
     query: str
-    mode: RunMode = RunMode.QUESTION
-    agents: List[str] = ["pre_earnings", "live_earnings", "transcript", "post_earnings"]
+    mode: str = "full_cycle"
+    earnings_date: Optional[str] = None
+    active_agents: Optional[List[str]] = None
+    async_mode: bool = False
     years: Optional[List[int]] = None
     quarters: Optional[List[int]] = None
 
@@ -38,17 +40,14 @@ class ChartData(BaseModel):
 class EarningsReport(BaseModel):
     run_id: str
     ticker: str
-    earnings_date: Optional[str] = None
-    mode: str
-    status: str  # "running" | "review" | "approved" | "final"
-    executive_summary: Optional[str] = None
-    sections: Dict[str, Optional[AgentResultResponse]] = {}
-    synthesis: Optional[str] = None
-    charts: List[ChartData] = []
-    sources: List[str] = []
-    confidence: Optional[float] = None
-    created_at: datetime = datetime.now()
-    critique_rounds: int = 0
+    query: str = ""
+    status: str = "running"
+    pre_earnings: Optional[AgentResultResponse] = None
+    live_earnings: Optional[AgentResultResponse] = None
+    transcript_analysis: Optional[AgentResultResponse] = None
+    post_earnings: Optional[AgentResultResponse] = None
+    synthesis: Optional[AgentResultResponse] = None
+    final_report: Optional[str] = None
 
 
 class ApprovalRequest(BaseModel):
@@ -58,7 +57,7 @@ class ApprovalRequest(BaseModel):
 
 class WatchlistItem(BaseModel):
     ticker: str
-    next_earnings_date: Optional[str] = None
+    next_earnings: Optional[str] = None
 
 
 class StreamEvent(BaseModel):
@@ -70,6 +69,4 @@ class StreamEvent(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
-    snowflake: str
-    pinecone: str
-    redis: str
+    checks: Dict[str, bool] = {}
