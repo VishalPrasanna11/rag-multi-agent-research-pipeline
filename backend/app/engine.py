@@ -26,7 +26,7 @@ from app import analysts as A
 from app.config import SCHEMA_VERSION, get_settings
 from app.db import Prediction, ReportRow, Run, RunEvent, User, audit, new_id, session_scope, utcnow
 from app.facts import FactStore
-from app.gather import GatherCtx, cutoff_dt, gather_all
+from app.gather import GatherCtx, attach_transcript, cutoff_dt, gather_all
 from app.llm import LLMRouter
 from app.logging import get_logger, redact, run_id_var
 from app.market import NY
@@ -166,7 +166,7 @@ def _dump_ctx(ctx: GatherCtx) -> dict[str, Any]:
         "cik": ctx.cik,
         "company": ctx.company,
         "event": ctx.event.model_dump(mode="json") if ctx.event else None,
-        "docs": {k: v[:60000] for k, v in ctx.docs.items()},
+        "docs": {k: v[: (250000 if k == "transcript" else 60000)] for k, v in ctx.docs.items()},
         "doc_cites": ctx.doc_cites,
         "unknowns": ctx.unknowns,
         "reactions": getattr(ctx, "_reactions", []),
@@ -246,6 +246,18 @@ def gather_node(state: RunState, config: RunnableConfig) -> dict[str, Any]:
     svc.ctx = ctx
     svc.events.emit("agent.started", "Data", message="Gathering cited facts")
     gather_all(ctx, lambda: is_cancelled(svc.run_id))
+    inputs = _run_inputs(state["run_id"])
+    if inputs.get("transcript_text"):
+        attach_transcript(ctx, inputs["transcript_text"], inputs.get("transcript_label"))
+    if ctx.docs.get("transcript"):
+        svc.progress("filings", "Analysing the uploaded transcript: prepared remarks vs Q&A")
+        tinfo = A.transcript_agent(ctx, svc.llm)
+        svc.events.emit(
+            "agent.progress",
+            "Transcript & filings",
+            message=f"Transcript: {tinfo.get('themes', 0)} question themes, "
+            f"{tinfo.get('evasive', 0)} verified non-answers",
+        )
     if ctx.docs.get("press_release"):
         svc.progress("filings", "Extracting figures and guidance from the press release (quotes verified)")
         info = A.documents_agent(ctx, svc.llm)
@@ -266,6 +278,12 @@ def gather_node(state: RunState, config: RunnableConfig) -> dict[str, Any]:
     )
     svc.events.emit("agent.completed", "Data", message=f"{ok} cited facts, {na} marked unavailable")
     return {"gathered": _dump_ctx(ctx)}
+
+
+def _run_inputs(run_id: str) -> dict[str, Any]:
+    with session_scope() as s:
+        r = s.get(Run, run_id)
+        return dict(r.inputs or {}) if r else {}
 
 
 def analyze_node(state: RunState, config: RunnableConfig) -> dict[str, Any]:
@@ -344,8 +362,9 @@ def critique_node(state: RunState, config: RunnableConfig) -> dict[str, Any]:
     issues = A.deterministic_checks(sections, brief, ctx.store)
     tokens_before = svc.llm.usage.tokens_in + svc.llm.usage.tokens_out
     if svc.llm.enabled and svc.llm.remaining_cost() > 0.03:
-        issues += A.llm_critique(svc.llm, sections, ctx.store)
-    high = [i for i in issues if i.severity == "high"]
+        issues += A.llm_critique(svc.llm, sections, ctx.store, A.critic_evidence(ctx, state.get("query")))
+    # Only substantive defects trigger a rewrite; "missing" suggestions are kept for the reviewer.
+    high = [i for i in issues if i.severity == "high" and i.kind in A.REFINE_KINDS]
     max_rounds = get_settings().MAX_CRITIQUE_ROUNDS
     can_refine = bool(high) and rnd <= max_rounds and svc.llm.enabled and svc.llm.remaining_cost() > 0.05
     action = "refined" if can_refine else ("budget_stop" if high and rnd <= max_rounds else "accepted")
@@ -648,6 +667,7 @@ def create_run(
     as_of: date | None,
     event_date: date | None,
     fixture: bool,
+    inputs: dict[str, Any] | None = None,
 ) -> Run:
     today = datetime.now(NY).date()
     cutoff = min(as_of or today, today)
@@ -665,6 +685,7 @@ def create_run(
             event_date=event_date,
             status="queued",
             fixture=fixture,
+            inputs=inputs,
         )
         s.add(run)
         audit(s, user_id, "run.create", "run", run.id, ticker=ticker, mode=mode, fixture=fixture)

@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "text-embedding-3-large"
     RUN_TOKEN_BUDGET: int = 80_000
     RUN_COST_BUDGET_USD: float = 0.30
-    MAX_CRITIQUE_ROUNDS: int = 2
+    MAX_CRITIQUE_ROUNDS: int = 1  # refine rounds; one more critique pass always records residual issues
 
     # Data providers
     FMP_API_KEY: str = ""

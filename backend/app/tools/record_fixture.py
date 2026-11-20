@@ -69,6 +69,11 @@ class Recorder:
         self.out.setdefault("documents", {})[url] = rec
         return Payload(text, p.source, p.title, p.as_of, url=p.url, license_note=p.license_note)
 
+    def form4(self, cik: str, accession: str, primary_doc: str) -> Payload:
+        p = self.live.form4(cik, accession, primary_doc)
+        self.out.setdefault("form4", {})[accession] = _rec(p)
+        return p
+
     def earnings_history(self, ticker: str) -> Payload:
         p = self.live.earnings_history(ticker)
         self.out["earnings_history"] = _rec(p)

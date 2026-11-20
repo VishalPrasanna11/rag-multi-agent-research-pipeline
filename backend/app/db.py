@@ -108,6 +108,7 @@ class Run(Base):
     tokens_out: Mapped[int] = mapped_column(Integer, default=0)
     cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
     pending: Mapped[dict[str, Any] | None] = mapped_column(JSON)  # clarification / review prompt
+    inputs: Mapped[dict[str, Any] | None] = mapped_column(JSON)  # e.g. uploaded transcript
     created_at: Mapped[datetime] = mapped_column(TZDateTime(), default=utcnow, index=True)
     started_at: Mapped[datetime | None] = mapped_column(TZDateTime())
     finished_at: Mapped[datetime | None] = mapped_column(TZDateTime())
@@ -349,9 +350,22 @@ def session_scope() -> Iterator[Session]:
 
 
 def init_db() -> None:
-    """Create tables for SQLite/test. Postgres is managed by Alembic (`alembic upgrade head`)."""
-    if not get_settings().durable_storage:
+    """Bring the schema to head. Tests use create_all; every other environment runs Alembic migrations
+    (SQLite fallback and Postgres alike), so local and production schemas never drift."""
+    s = get_settings()
+    if s.ENV == "test":
         Base.metadata.create_all(get_engine())
+        return
+    from alembic import command
+    from alembic.config import Config
+
+    from app.config import ROOT
+
+    cfg = Config(str(ROOT / "backend" / "alembic.ini"))
+    cfg.set_main_option("script_location", str(ROOT / "backend" / "migrations"))
+    with get_engine().begin() as conn:
+        cfg.attributes["connection"] = conn
+        command.upgrade(cfg, "head")
 
 
 def audit(sess: Session, actor: str, action: str, subject_type: str, subject_id: str, **detail: Any) -> None:

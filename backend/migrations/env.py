@@ -16,9 +16,25 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    conn = context.config.attributes.get("connection")
+    if conn is not None:  # called from app.db.init_db with an open connection
+        context.configure(
+            connection=conn,
+            target_metadata=target_metadata,
+            compare_type=True,
+            render_as_batch=conn.dialect.name == "sqlite",
+        )
+        with context.begin_transaction():
+            context.run_migrations()
+        return
     engine = create_engine(get_settings().database_url)
-    with engine.connect() as conn:
-        context.configure(connection=conn, target_metadata=target_metadata, compare_type=True)
+    with engine.connect() as c:
+        context.configure(
+            connection=c,
+            target_metadata=target_metadata,
+            compare_type=True,
+            render_as_batch=c.dialect.name == "sqlite",
+        )
         with context.begin_transaction():
             context.run_migrations()
 

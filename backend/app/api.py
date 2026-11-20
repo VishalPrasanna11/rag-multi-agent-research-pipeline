@@ -160,8 +160,13 @@ async def create_run(body: RunCreate, ident: Identity = Depends(current_identity
     if body.fixture is False and s.fixture_mode:
         raise AppError("upstream_unavailable", "Live research is unavailable: no LLM key is configured", 503)
     check_rate(ident, "runs", s.ANON_RUNS_PER_HOUR if ident.anonymous and not fixture else s.RUNS_PER_HOUR)
+    inputs = (
+        {"transcript_text": body.transcript_text, "transcript_label": body.transcript_label}
+        if body.transcript_text
+        else None
+    )
     run = engine.create_run(
-        ident.sub, body.ticker, body.mode, body.query, body.as_of, body.event_date, fixture
+        ident.sub, body.ticker, body.mode, body.query, body.as_of, body.event_date, fixture, inputs
     )
     _spawn(engine.execute, run.id)
     return {

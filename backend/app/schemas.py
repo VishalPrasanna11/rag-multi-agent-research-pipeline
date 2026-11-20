@@ -242,6 +242,8 @@ class RunCreate(Model):
     as_of: date | None = None  # research "as of" this date (back-test / historical)
     event_date: date | None = None
     fixture: bool | None = None
+    transcript_text: str | None = Field(default=None, max_length=300_000)
+    transcript_label: str | None = Field(default=None, max_length=200)
 
     @field_validator("ticker")
     @classmethod

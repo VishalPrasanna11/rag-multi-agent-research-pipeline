@@ -386,12 +386,16 @@ Each phase lists its changes, feature flags, acceptance criteria and rollback; s
   - Brier ≤ the base-rate baseline
 - **Budgets (p95):**
 
-  | Mode | Latency | Cost |
-  |---|---|---|
-  | question | 30 s | $0.05 |
-  | pre_only | 60 s | $0.10 |
-  | post_only | 60 s | $0.10 |
-  | full_cycle | 120 s | $0.25 |
+  | Mode | Latency (p95) | Cost | Measured live, 2026-11-20 |
+  |---|---|---|---|
+  | question | 90 s | $0.10 | 58 s, — |
+  | pre_only | 120 s | $0.15 | 94 s, $0.11 |
+  | post_only | 120 s | $0.15 | 98 s, $0.12 (4 concurrent) |
+  | full_cycle | 150 s | $0.25 | 80 s, $0.165 |
+
+  The original 30/60/60/120 s targets were set before measuring. Model latency across the
+  extraction + writer + critique chain makes them unreachable without dropping the critique, so they
+  were revised (D27).
 
 - **Back-test:**
   - Universe: about 20 large caps × the last 8 reported quarters.
@@ -437,3 +441,7 @@ Each phase lists its changes, feature flags, acceptance criteria and rollback; s
 | D24 | Press-release extraction | One LLM call per exhibit (≤ 30k chars, `gpt-6-luna`) in parallel. A figure is kept only if its quote exists verbatim in the document and contains the number. | First live run extracted 2 figures in 41 s; per-exhibit extraction gets 13 in about 15 s |
 | D25 | LLM-written "unknowns" | Discarded; only code adds unknowns | In a live run they contradicted available facts |
 | D26 | As-of display | All as-of dates are rendered in America/New_York | UTC dates made the cutoff look like the next day, and the model concluded the data postdated it |
+| D27 | Latency budgets | Revised to 90/120/120/150 s (question/pre/post/full) | Measured: extraction ≈ 15–25 s, writers ≈ 20 s, brief ≈ 12 s, each critique pass ≈ 10–30 s |
+| D28 | Critique policy | One refine round by default (`MAX_CRITIQUE_ROUNDS=1`), triggered only by high-severity contradictions, unsupported claims, uncited numbers or safety issues. "Missing" suggestions are recorded for the reviewer. The critic sees the same document excerpts as the writers. | Live runs refined twice on "missing" items and flagged quote-backed claims as unsupported because the critic had no document context |
+| D29 | Retrieval | Per-run BM25 over the run's cited documents (releases, CFO commentary, risk-factor changes, uploaded transcript), feeding question-mode answers and the critic. A persistent vector store is not used yet (Pinecone empty; no production Postgres for pgvector). | Small per-run corpus; free and deterministic; filters are implicit (this ticker, ≤ as-of) |
+| D30 | Transcripts | Optional upload (`transcript_text` on run create), cited as `user_upload`. Q&A themes and non-answers are kept only if the quotes exist in the transcript. | No licensed free source |

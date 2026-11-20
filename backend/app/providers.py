@@ -71,6 +71,7 @@ class Providers(Protocol):
     def options_snapshot(self, ticker: str, event_date: date | None) -> Payload: ...
     def short_interest(self, ticker: str) -> Payload: ...
     def news(self, ticker: str, start: date, end: date) -> Payload: ...
+    def form4(self, cik: str, accession: str, primary_doc: str) -> Payload: ...
     def earnings_calendar(self, start: date, end: date) -> Payload: ...
 
 
@@ -286,6 +287,26 @@ class LiveProviders:
             url.rsplit("/", 1)[-1],
             datetime.now(UTC),
             url=url,
+            license_note=SEC_LICENSE,
+        )
+
+    def form4(self, cik: str, accession: str, primary_doc: str) -> Payload:
+        doc = primary_doc.rsplit("/", 1)[
+            -1
+        ]  # primaryDocument points at the XSL rendering; raw XML sits at root
+        url = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace('-', '')}/{doc}"
+        key = _ck("sec-f4", accession)
+        data = _cache_get(key)
+        if data is None:
+            data = parse_form4(self._sec_get(url).text)
+            _cache_put(key, data, timedelta(days=365))
+        return Payload(
+            data,
+            SourceKind.SEC_FILING,
+            f"Form 4 {accession}",
+            datetime.now(UTC),
+            url=url,
+            locator=accession,
             license_note=SEC_LICENSE,
         )
 
@@ -606,6 +627,43 @@ def prune_company_facts(d: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def parse_form4(xml: str) -> dict[str, Any]:
+    """Non-derivative transactions from a Form 4 (ownership XML)."""
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(xml, "xml")
+
+    def t(node: Any, path: str) -> str | None:
+        cur = node
+        for part in path.split("/"):
+            cur = cur.find(part) if cur is not None else None
+        return cur.get_text(strip=True) if cur is not None else None
+
+    owner = t(soup, "reportingOwner/reportingOwnerId/rptOwnerName")
+    rel = soup.find("reportingOwnerRelationship")
+    role = "director" if rel is not None and t(rel, "isDirector") in ("1", "true") else ""
+    if rel is not None and t(rel, "isOfficer") in ("1", "true"):
+        role = t(rel, "officerTitle") or "officer"
+    plan = (t(soup, "aff10b5One") or "").lower() in ("1", "true") or "10b5-1" in xml.lower()
+    txs = []
+    for tx in soup.find_all("nonDerivativeTransaction"):
+        try:
+            shares = float(t(tx, "transactionAmounts/transactionShares/value") or 0)
+            price = float(t(tx, "transactionAmounts/transactionPricePerShare/value") or 0)
+        except ValueError:
+            continue
+        txs.append(
+            {
+                "date": t(tx, "transactionDate/value"),
+                "code": t(tx, "transactionCoding/transactionCode"),
+                "ad": t(tx, "transactionAmounts/transactionAcquiredDisposedCode/value"),
+                "shares": shares,
+                "price": price,
+            }
+        )
+    return {"owner": owner, "role": role, "plan_10b5_1": plan, "transactions": txs}
+
+
 def parse_filing_index(html: str, base: str) -> list[dict[str, Any]]:
     from bs4 import BeautifulSoup
 
@@ -729,6 +787,10 @@ class FixtureProviders:
         p = self._payload(self._load(ticker).get("news"), "news")  # type: ignore[arg-type]
         p.data = [n for n in p.data if not n.get("published") or str(n["published"])[:10] <= end.isoformat()]
         return p
+
+    def form4(self, cik: str, accession: str, primary_doc: str) -> Payload:
+        rec = self._by_cik(cik).get("form4", {}).get(accession)
+        return self._payload(rec, "form4")  # type: ignore[arg-type]
 
     def earnings_calendar(self, start: date, end: date) -> Payload:
         rows: list[dict[str, Any]] = []

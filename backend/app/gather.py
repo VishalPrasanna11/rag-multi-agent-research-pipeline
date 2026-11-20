@@ -1093,6 +1093,7 @@ def filings_and_documents(ctx: GatherCtx) -> None:
     ctx.store.add(
         "pos.form4_count_90d", "Insider Form 4 filings, last 90 days", float(len(form4)), "count", cid4
     )
+    _insiders(ctx, form4[:15])
 
     # earnings press release + CFO commentary (current and prior quarter)
     releases = [f for f in ctx.filings if f["form"] == "8-K" and "2.02" in (f["items"] or "")]
@@ -1152,6 +1153,67 @@ def filings_and_documents(ctx: GatherCtx) -> None:
             "Risk-factor changes",
             "two periodic filings with an Item 1A section",
         )
+
+
+def _insiders(ctx: GatherCtx, filings: list[dict[str, Any]]) -> None:
+    """Open-market purchases (code P) and sales (code S) by insiders, last 90 days."""
+    assert ctx.cik
+    buys = sells = sells_plan = 0.0
+    buyers: set[str] = set()
+    sellers: set[str] = set()
+    parsed = 0
+    for f in filings:
+        try:
+            p = ctx.providers.form4(ctx.cik, f["accession"], f["primary_doc"])
+        except ProviderError:
+            continue
+        parsed += 1
+        d = p.data
+        for tx in d.get("transactions", []):
+            value = float(tx.get("shares") or 0) * float(tx.get("price") or 0)
+            if tx.get("code") == "P":
+                buys += value
+                buyers.add(d.get("owner") or "?")
+            elif tx.get("code") == "S":
+                sells += value
+                sellers.add(d.get("owner") or "?")
+                if d.get("plan_10b5_1"):
+                    sells_plan += value
+    if not parsed:
+        ctx.store.unavailable("pos.insider_net_usd_90d", "Insider net open-market activity", "Form 4 XML")
+        return
+    cid = ctx.store.cite(
+        SourceKind.SEC_FILING,
+        f"{parsed} Form 4 filings (last 90 days), open-market transactions",
+        _cutoff_dt(ctx),
+        url=f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={ctx.cik}&type=4",
+        locator=",".join(f["accession"] for f in filings[:parsed]),
+        license_note="SEC EDGAR (public domain)",
+    )
+    ctx.store.add("pos.insider_buys_usd_90d", "Insider open-market purchases, 90 days", buys, "USD", cid)
+    ctx.store.add("pos.insider_sales_usd_90d", "Insider open-market sales, 90 days", sells, "USD", cid)
+    ctx.store.add("pos.insider_buyers_90d", "Insiders buying, 90 days", float(len(buyers)), "count", cid)
+    ctx.store.add("pos.insider_sellers_90d", "Insiders selling, 90 days", float(len(sellers)), "count", cid)
+    if sells:
+        ctx.store.add(
+            "pos.insider_sales_planned_share",
+            "Share of insider sales under 10b5-1 plans",
+            sells_plan / sells,
+            "prob",
+            cid,
+        )
+
+
+def attach_transcript(ctx: GatherCtx, text: str, label: str | None) -> None:
+    cid = ctx.store.cite(
+        SourceKind.USER_UPLOAD,
+        f"User-uploaded transcript{': ' + label if label else ''}",
+        _cutoff_dt(ctx),
+        locator="upload",
+        license_note="Provided by the user; verify the source.",
+    )
+    ctx.docs["transcript"] = text[:250000]
+    ctx.doc_cites["transcript"] = cid
 
 
 def _fetch_exhibits(ctx: GatherCtx, f: dict[str, Any], role: str) -> None:
