@@ -1,24 +1,35 @@
 import logging
 from typing import Dict
 from models.state import EarningsState, AgentResult
-from agents.pre_earnings import PreEarningsAgent
-from agents.live_earnings import LiveEarningsAgent
-from agents.transcript import TranscriptAgent
-from agents.post_earnings import PostEarningsAgent
-from agents.synthesis import SynthesisAgent
 
 logger = logging.getLogger(__name__)
 
-pre_earnings_agent = PreEarningsAgent()
-live_earnings_agent = LiveEarningsAgent()
-transcript_agent = TranscriptAgent()
-post_earnings_agent = PostEarningsAgent()
-synthesis_agent = SynthesisAgent()
+_agents = {}
+
+
+def _get_agent(name: str):
+    if name not in _agents:
+        if name == "pre_earnings":
+            from agents.pre_earnings import PreEarningsAgent
+            _agents[name] = PreEarningsAgent()
+        elif name == "live_earnings":
+            from agents.live_earnings import LiveEarningsAgent
+            _agents[name] = LiveEarningsAgent()
+        elif name == "transcript":
+            from agents.transcript import TranscriptAgent
+            _agents[name] = TranscriptAgent()
+        elif name == "post_earnings":
+            from agents.post_earnings import PostEarningsAgent
+            _agents[name] = PostEarningsAgent()
+        elif name == "synthesis":
+            from agents.synthesis import SynthesisAgent
+            _agents[name] = SynthesisAgent()
+    return _agents[name]
 
 
 def pre_earnings_node(state: EarningsState) -> Dict:
     logger.info(f"Running pre_earnings for {state['ticker']}")
-    result = pre_earnings_agent.execute(
+    result = _get_agent("pre_earnings").execute(
         query=state["query"],
         ticker=state["ticker"],
     )
@@ -28,7 +39,7 @@ def pre_earnings_node(state: EarningsState) -> Dict:
 def live_earnings_node(state: EarningsState) -> Dict:
     logger.info(f"Running live_earnings for {state['ticker']}")
     pre_data = state.get("pre_earnings")
-    result = live_earnings_agent.execute(
+    result = _get_agent("live_earnings").execute(
         query=state["query"],
         ticker=state["ticker"],
         filing_text=state.get("filing_text"),
@@ -40,7 +51,7 @@ def live_earnings_node(state: EarningsState) -> Dict:
 
 def transcript_node(state: EarningsState) -> Dict:
     logger.info(f"Running transcript analysis for {state['ticker']}")
-    result = transcript_agent.execute(
+    result = _get_agent("transcript").execute(
         query=state["query"],
         ticker=state["ticker"],
         transcript_text=state.get("transcript_text"),
@@ -51,7 +62,7 @@ def transcript_node(state: EarningsState) -> Dict:
 def post_earnings_node(state: EarningsState) -> Dict:
     logger.info(f"Running post_earnings for {state['ticker']}")
     flash = state.get("live_earnings")
-    result = post_earnings_agent.execute(
+    result = _get_agent("post_earnings").execute(
         query=state["query"],
         ticker=state["ticker"],
         earnings_date=state.get("earnings_date"),
@@ -67,7 +78,7 @@ def synthesize_node(state: EarningsState) -> Dict:
         if state.get(key):
             agent_results[key] = state[key]
 
-    result = synthesis_agent.execute(
+    result = _get_agent("synthesis").execute(
         query=state["query"],
         ticker=state["ticker"],
         agent_results=agent_results,
@@ -86,7 +97,7 @@ def critique_node(state: EarningsState) -> Dict:
         if state.get(key):
             agent_results[key] = state[key]
 
-    feedback = synthesis_agent.critique(synthesis_result.response, agent_results)
+    feedback = _get_agent("synthesis").critique(synthesis_result.response, agent_results)
     return {
         "critique_feedback": feedback,
         "critique_round": state.get("critique_round", 0) + 1,
@@ -108,7 +119,7 @@ def refine_node(state: EarningsState) -> Dict:
         if agent_result:
             follow_up_answers[fb.target_agent] = agent_result.response[:300]
 
-    refined = synthesis_agent.refine(synthesis_result.response, feedback, follow_up_answers)
+    refined = _get_agent("synthesis").refine(synthesis_result.response, feedback, follow_up_answers)
 
     return {
         "synthesis": AgentResult(
