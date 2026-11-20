@@ -178,3 +178,13 @@ cython_debug/
 
 # App artifacts
 charts/
+
+# upgrade
+var/
+*.egg-info/
+.venv/
+frontend/dist/
+frontend/node_modules/
+evals/reports/
+playwright-report/
+test-results/

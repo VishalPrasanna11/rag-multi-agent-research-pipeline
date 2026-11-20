@@ -430,3 +430,10 @@ Each phase lists its changes, feature flags, acceptance criteria and rollback; s
 | D17 | yfinance | Kept behind a provider interface for prices, options and short interest; flagged unofficial (Yahoo ToS: personal use) in UI and docs | Only free source for options and short interest |
 | D18 | Old working-tree changes | Committed to `upgrade` as the first commit | Start from the real state |
 | D19 | Deploy | Heroku container stack via heroku.yml | One reproducible image with the built SPA |
+| D20 | Streamlit during P1–P5 | **Not kept running**: it called the removed `/research` endpoints, and keeping them would mean maintaining the ungrounded pipeline. It is deleted in P5 when the React UI lands. | Deviation from "run alongside": avoids serving ungrounded output |
+| D21 | FMP free-tier parameters | `stable/earnings?symbol=` with **no `limit`** (gives 111 rows); `stable/earnings-calendar` with no range, filtered locally | Verified 2026-11-20: `limit>5` and wide `from/to` return 402 |
+| D22 | Run execution | In-process (thread off the web dyno's event loop). The event log lives in the DB so SSE works across processes. Orphaned runs are marked failed on restart. The worker dyno runs scheduled jobs. | One web dyno; a run takes 30–90 s |
+| D23 | LangGraph checkpointer | `PostgresSaver` when `DATABASE_URL` is Postgres, else `InMemorySaver`. Review falls back to a direct DB update when no checkpoint exists. | Keeps review working after a restart even without durable storage |
+| D24 | Press-release extraction | One LLM call per exhibit (≤ 30k chars, `gpt-6-luna`) in parallel. A figure is kept only if its quote exists verbatim in the document and contains the number. | First live run extracted 2 figures in 41 s; per-exhibit extraction gets 13 in about 15 s |
+| D25 | LLM-written "unknowns" | Discarded; only code adds unknowns | In a live run they contradicted available facts |
+| D26 | As-of display | All as-of dates are rendered in America/New_York | UTC dates made the cutoff look like the next day, and the model concluded the data postdated it |
