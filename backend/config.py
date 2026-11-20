@@ -24,7 +24,8 @@ class Settings:
     FMP_API_KEY: str = os.getenv("FMP_API_KEY", "")
 
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    CHARTS_DIR: str = os.getenv("CHARTS_DIR", "/app/shared")
+    REDIS_TLS: bool = os.getenv("REDIS_URL", "").startswith("rediss://")
+    CHARTS_DIR: str = os.getenv("CHARTS_DIR", "/tmp/charts")
 
     SEC_RSS_POLL_INTERVAL: int = int(os.getenv("SEC_RSS_POLL_INTERVAL", "60"))
     MAX_CRITIQUE_ROUNDS: int = int(os.getenv("MAX_CRITIQUE_ROUNDS", "2"))
