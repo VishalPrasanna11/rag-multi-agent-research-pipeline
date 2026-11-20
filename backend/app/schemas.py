@@ -227,6 +227,7 @@ class Report(Model):
     critique_history: list[CritiqueRound] = Field(default_factory=list)
     review_status: Literal["pending", "approved", "rejected", "changes_requested", "not_required"] = "pending"
     fixture: bool = False
+    notices: list[str] = Field(default_factory=list)
     cost_usd: float = 0.0
     disclaimer: str = DISCLAIMER
     schema_version: str
@@ -244,6 +245,10 @@ class RunCreate(Model):
     fixture: bool | None = None
     transcript_text: str | None = Field(default=None, max_length=300_000)
     transcript_label: str | None = Field(default=None, max_length=200)
+    debug_plant: str | None = Field(
+        default=None, max_length=500, description="eval hook; ignored in production"
+    )
+    debug_fail: list[str] | None = Field(default=None, description="eval hook: simulate provider outages")
 
     @field_validator("ticker")
     @classmethod

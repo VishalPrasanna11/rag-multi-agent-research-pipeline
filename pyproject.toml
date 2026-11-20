@@ -35,6 +35,7 @@ dependencies = [
   "sentry-sdk==2.75.0",
   "python-multipart==0.0.34",
   "cachetools==8.0.2",
+  "pyyaml==6.0.3",
 ]
 
 [project.optional-dependencies]

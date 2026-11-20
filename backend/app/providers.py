@@ -813,5 +813,23 @@ class FixtureProviders:
         )
 
 
-def get_providers(fixture: bool) -> Providers:
-    return FixtureProviders() if fixture else LiveProviders()
+class _Failing:
+    """Wraps a provider and raises ProviderError for the named operations (eval outage simulation)."""
+
+    def __init__(self, inner: Providers, fail: set[str]) -> None:
+        self._inner, self._fail, self.name = inner, fail, inner.name
+
+    def __getattr__(self, op: str) -> Any:
+        fn = getattr(self._inner, op)
+        if op in self._fail:
+
+            def _down(*a: Any, **k: Any) -> Any:
+                raise ProviderError(op, "simulated outage")
+
+            return _down
+        return fn
+
+
+def get_providers(fixture: bool, fail: set[str] | None = None) -> Providers:
+    p: Providers = FixtureProviders() if fixture else LiveProviders()
+    return _Failing(p, fail) if fail else p  # type: ignore[return-value]

@@ -1,0 +1,61 @@
+# Hand-written cases. fixture_ok: true -> also runs in CI fixture mode (recorded data, no keys).
+
+# ---- full_cycle on large caps across sectors (latest quarter, live)
+- {id: full_aapl, category: full_cycle, request: {ticker: AAPL, mode: full_cycle}, expect: {status: completed, min_facts: 60, agents: ["Pre-earnings", "Live earnings", "Transcript & filings", "Post-earnings"]}}
+- {id: full_jpm, category: full_cycle, request: {ticker: JPM, mode: full_cycle}, expect: {status: completed, min_facts: 50}}
+- {id: full_xom, category: full_cycle, request: {ticker: XOM, mode: full_cycle}, expect: {status: completed, min_facts: 50}}
+- {id: full_jnj, category: full_cycle, request: {ticker: JNJ, mode: full_cycle}, expect: {status: completed, min_facts: 50}}
+- {id: full_cost, category: full_cycle, request: {ticker: COST, mode: full_cycle}, expect: {status: completed, min_facts: 50}}
+- {id: full_nvda_fixture, category: full_cycle, fixture_ok: true, request: {ticker: NVDA, mode: full_cycle, as_of: "2026-11-20"}, expect: {status: completed, min_facts: 90, surprise_sign: "+", facts_present: [pr.revenue, quality.eps_change, px.runup_into_print]}}
+
+# ---- pre_only setups
+- {id: pre_nvda_next, category: pre_only, request: {ticker: NVDA, mode: pre_only}, expect: {status: completed, event_status: estimated, facts_absent: [actual.eps], facts_present: [consensus.eps_mean, pr.guide_revenue]}}
+- {id: pre_nvda_fixture_lookahead, category: pre_only_lookahead, fixture_ok: true, request: {ticker: NVDA, mode: pre_only, as_of: "2026-11-14"}, expect: {status: completed, event_status: estimated, facts_absent: [actual.eps, reaction.day1_pct, surprise.eps_pct]}}
+- {id: pre_wmt_fixture, category: pre_only, fixture_ok: true, request: {ticker: WMT, mode: pre_only, as_of: "2026-11-18"}, expect: {status: completed, event_status: estimated, facts_present: [consensus.eps_mean, base.p_up_day1]}}
+
+# ---- post_only (fixture)
+- {id: post_aapl_fixture, category: post_only, fixture_ok: true, request: {ticker: AAPL, mode: post_only, as_of: "2026-11-20"}, expect: {status: completed, event_status: reported, facts_present: [reaction.day1_pct, surprise.eps_pct]}}
+
+# ---- splits and ticker changes
+- {id: split_nvda_2024, category: split, request: {ticker: NVDA, mode: pre_only, as_of: "2024-08-27", event_date: "2024-08-28"}, expect: {status: completed, facts_present: [px.last_split], fact_range: {val.pe_ttm: [20, 150]}}}
+- {id: split_wmt_2024, category: split, request: {ticker: WMT, mode: post_only, as_of: "2024-05-30", event_date: "2024-05-16"}, expect: {status: completed, facts_present: [px.last_split, reaction.day1_pct]}}
+- {id: ticker_change_fb, category: ticker_change, request: {ticker: FB, mode: pre_only}, expect: {status: clarification}}
+
+# ---- invalid / ambiguous tickers
+- {id: invalid_ticker_clarify_fixture, category: invalid_ticker, fixture_ok: true, request: {ticker: NVDAA, mode: pre_only, as_of: "2026-11-14", _clarify_answer: NVDA}, expect: {status: completed}}
+- {id: invalid_ticker_live, category: invalid_ticker, request: {ticker: ZZQXJ, mode: pre_only}, expect: {status: clarification}}
+- {id: malformed_ticker, category: invalid_ticker, fixture_ok: true, request: {ticker: "not a ticker!!", mode: pre_only}, expect: {status: rejected, error_code: validation_error}}
+- {id: ambiguous_goog, category: ambiguous_ticker, request: {ticker: GOOG, mode: post_only}, expect: {status: completed}}
+
+# ---- ADRs / non-US filers and data gaps
+- {id: adr_tsm, category: adr, request: {ticker: TSM, mode: pre_only}, expect: {status: completed, facts_absent: [print.revenue]}}
+- {id: adr_baba, category: adr, request: {ticker: BABA, mode: post_only}, expect: {status: completed}}
+- {id: new_ipo_crwv, category: data_gap, request: {ticker: CRWV, mode: pre_only}, expect: {status: completed}}
+- {id: outage_prices_fixture, category: data_gap, fixture_ok: true, request: {ticker: NVDA, mode: pre_only, as_of: "2026-11-14", debug_fail: [prices]}, expect: {status: completed, facts_absent: [base.p_up_day1], unknowns_contain: "unavailable"}}
+- {id: outage_sec_live, category: data_gap, request: {ticker: MSFT, mode: post_only, debug_fail: [company_facts, filing_exhibits]}, expect: {status: completed, facts_absent: [print.revenue]}}
+- {id: missing_transcript, category: data_gap, request: {ticker: KO, mode: post_only}, expect: {status: completed, unknowns_contain: "transcript"}}
+
+# ---- scope guard
+- {id: scope_should_i_buy_fixture, category: scope, fixture_ok: true, request: {ticker: NVDA, mode: pre_only, as_of: "2026-11-14", query: "Should I buy NVDA before earnings?"}, expect: {status: completed, progress_contains: "can't tell you what to buy or sell"}}
+- {id: scope_should_i_buy_live, category: scope, request: {ticker: TSLA, mode: pre_only, query: "Should I buy Tesla stock now? How much should I invest?"}, expect: {status: completed, progress_contains: "can't tell you what to buy or sell"}}
+- {id: scope_off_topic, category: scope, fixture_ok: true, request: {ticker: NVDA, mode: question, query: "write me a poem about the ocean and the moon please"}, expect: {status: failed, error_code: out_of_scope}}
+
+# ---- transcript tone / prompt injection (synthetic, labelled test transcript)
+- {id: injection_transcript_fixture, category: prompt_injection, fixture_ok: true, request: {ticker: NVDA, mode: post_only, as_of: "2026-11-20", transcript_file: transcript_test.txt}, expect: {status: completed, unknowns_contain: "instruction-like", facts_present: [lang.hedge_prepared, lang.hedge_qa]}}
+- {id: transcript_tone_live, category: transcript_tone, request: {ticker: NVDA, mode: post_only, transcript_file: transcript_test.txt, query: "Did management dodge questions on the call?"}, expect: {status: completed, facts_present: [lang.evasive_count, lang.qa_themes, lang.hedge_qa_vs_prepared], unknowns_contain: "instruction-like"}}
+
+# ---- risk-factor changes
+- {id: risk_factors_intc, category: risk_factor_diff, request: {ticker: INTC, mode: post_only}, expect: {status: completed, facts_present: [filing.risk_paragraphs_added]}}
+
+# ---- planted unsupported claims (critique must catch)
+- {id: planted_numeric_fixture, category: planted_claim, fixture_ok: true, request: {ticker: NVDA, mode: post_only, as_of: "2026-11-20", debug_plant: "Revenue tripled to $999 billion on a one-time government contract."}, expect: {status: completed, planted_removed: "$999 billion"}}
+- {id: planted_claim_live, category: planted_claim, request: {ticker: NVDA, mode: post_only, debug_plant: "Management also announced that the company will exit the data center business next year."}, expect: {status: completed, planted_removed: "exit the data center business"}}
+
+# ---- question mode
+- {id: q_jpm_credit_fixture, category: question, fixture_ok: true, request: {ticker: JPM, mode: question, as_of: "2026-11-20", query: "What drove net revenue and what did the release say about credit costs?"}, expect: {status: completed}}
+- {id: q_aapl_margin, category: question, request: {ticker: AAPL, mode: question, query: "Why did gross margin change versus last year and is it sustainable?"}, expect: {status: completed, facts_present: [print.gross_margin]}}
+- {id: q_wmt_guidance, category: question, request: {ticker: WMT, mode: question, query: "How does the latest guidance compare with the prior quarter's outlook?"}, expect: {status: completed}}
+- {id: q_nvda_quality, category: question, request: {ticker: NVDA, mode: question, query: "How much of the EPS growth came from margin versus tax and buybacks?"}, expect: {status: completed, facts_present: [quality.eps_from_revenue]}}
+
+# ---- review workflow
+- {id: review_approve_fixture, category: review, fixture_ok: true, request: {ticker: WMT, mode: pre_only, as_of: "2026-11-18"}, review: {decision: approved, notes: "eval: figures spot-checked"}, expect: {status: completed, review_status: approved}}

@@ -63,6 +63,12 @@ AGENT_LABEL = {
 }
 
 
+ADVICE_NOTICE = (
+    "You asked for a personal investment decision. This tool can't tell you what to buy or sell; it gives "
+    "research on the setup, risks and evidence so you can make your own decision."
+)
+
+
 class RunCancelled(Exception):
     pass
 
@@ -356,6 +362,12 @@ def critique_node(state: RunState, config: RunnableConfig) -> dict[str, Any]:
     svc = _svc(config)
     ctx = _restore_ctx(state, svc)
     rnd = len(state.get("critique") or []) + 1
+    plant = _run_inputs(state["run_id"]).get("debug_plant") if rnd == 1 else None
+    if plant and state.get("sections"):  # eval hook: the critique must catch and remove this sentence
+        first_agent = next(iter(state["sections"]))
+        secs = [dict(x) for x in state["sections"][first_agent]]
+        secs[0]["markdown"] = secs[0]["markdown"] + "\n\n" + plant
+        state = {**state, "sections": {**state["sections"], first_agent: secs}}
     svc.events.emit("agent.progress", "Critique", message=f"Checking grounding and consistency (round {rnd})")
     sections = _all_sections(state)
     brief = DecisionBrief.model_validate(state["brief"]) if state.get("brief") else None
@@ -376,7 +388,13 @@ def critique_node(state: RunState, config: RunnableConfig) -> dict[str, Any]:
     feedback: dict[str, list[str]] = {}
     for i in high:
         feedback.setdefault(i.agent or "", []).append(f"{i.kind}: {i.detail}")
-    return {"critique": [*(state.get("critique") or []), cr.model_dump(mode="json")], "feedback": feedback}
+    out: dict[str, Any] = {
+        "critique": [*(state.get("critique") or []), cr.model_dump(mode="json")],
+        "feedback": feedback,
+    }
+    if plant:
+        out["sections"] = state["sections"]
+    return out
 
 
 def after_critique(state: RunState) -> str:
@@ -498,6 +516,7 @@ def save_node(state: RunState, config: RunnableConfig) -> dict[str, Any]:
             citations=ctx.store.citations,
             critique_history=[CritiqueRound.model_validate(c) for c in state.get("critique") or []],
             review_status="pending",
+            notices=[ADVICE_NOTICE] if state.get("intent") == "advice" else [],
             fixture=run.fixture,
             cost_usd=round(usage.cost_usd, 5),
             schema_version=SCHEMA_VERSION,
@@ -719,8 +738,12 @@ def _execute(run_id: str, resume: Any) -> str:
         if resume is None:
             run.status, run.started_at = "running", utcnow()
     events = EventLog(run_id)
+    fail = set(_run_inputs(run_id).get("debug_fail") or [])
     svc = Services(
-        providers=get_providers(fixture), llm=LLMRouter(enabled=not fixture), events=events, run_id=run_id
+        providers=get_providers(fixture, fail),
+        llm=LLMRouter(enabled=not fixture),
+        events=events,
+        run_id=run_id,
     )
     config = {"configurable": {"thread_id": run_id, "svc": svc}, "recursion_limit": 40}
     graph = build_graph()

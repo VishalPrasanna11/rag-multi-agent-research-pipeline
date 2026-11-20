@@ -76,6 +76,9 @@ class Settings(BaseSettings):
     RUNS_PER_HOUR: int = 20
     ANON_RUNS_PER_HOUR: int = 5
 
+    # Eval-only hooks (never honoured in production)
+    EVAL_HOOKS: bool = False
+
     @property
     def is_production(self) -> bool:
         return self.ENV == "production"
