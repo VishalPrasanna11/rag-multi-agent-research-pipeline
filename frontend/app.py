@@ -1,95 +1,119 @@
-# frontend/app.py
 import streamlit as st
-import requests
-import json
 import os
-from typing import List, Dict, Any
 
-# API endpoint
-API_URL = os.environ.get("API_URL", "http://backend:8000")  # When running in Docker
+st.set_page_config(
+    page_title="Earnings Intelligence Platform",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
-st.title("NVIDIA Research Assistant")
-st.write("Ask questions about NVIDIA's financial performance and get comprehensive research insights.")
+API_URL = os.environ.get("API_URL", "http://backend:8000")
 
-# User input
-query = st.text_input("Research Question", "What was NVIDIA's revenue growth in the past year?")
+st.sidebar.title("📊 Earnings Intel")
+st.sidebar.markdown("---")
+st.sidebar.markdown("### Navigation")
+st.sidebar.page_link("app.py", label="🏠 Dashboard", icon=None)
+st.sidebar.page_link("pages/report_viewer.py", label="📋 Report Viewer", icon=None)
+st.sidebar.page_link("pages/company_profile.py", label="🏢 Company Profile", icon=None)
 
-# Filtering options - modified to allow multiple selections
-col1, col2 = st.columns(2)
-with col1:
-    years = st.multiselect("Years", [2020, 2021, 2022, 2023, 2024], default=[])
-with col2:
-    quarters = st.multiselect("Quarters", [1, 2, 3, 4], default=[])
+st.title("Earnings Intelligence Platform")
+st.markdown("**Multi-agent financial research powered by LangGraph, Snowflake Cortex, and Pinecone RAG**")
 
-# Agent selection
-st.write("Select Research Agents:")
+st.markdown("---")
+
 col1, col2, col3 = st.columns(3)
 with col1:
-    use_rag = st.checkbox("Historical Data (RAG)", value=True)
+    st.metric("Agents", "5", help="Pre-Earnings, Live, Transcript, Post-Earnings, Synthesis")
 with col2:
-    use_snowflake = st.checkbox("Financial Metrics", value=True)
+    st.metric("Data Sources", "7", help="Snowflake, Pinecone, SEC EDGAR, FMP, Yahoo Finance, Tavily, OpenAI")
 with col3:
-    use_websearch = st.checkbox("Latest News & Trends", value=True)
+    st.metric("Run Modes", "4", help="Full Cycle, Pre-Only, Post-Only, Question")
 
-# Generate report button
-if st.button("Generate Research Report"):
-    agents = []
-    if use_rag:
-        agents.append("rag")
-    if use_snowflake:
-        agents.append("snowflake")
-    if use_websearch:
-        agents.append("websearch")
-        
-    # Prepare request - modified to handle multiple years and quarters
+st.markdown("---")
+st.subheader("Quick Research")
+
+with st.form("quick_research"):
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        ticker = st.text_input("Ticker Symbol", value="NVDA", max_chars=10)
+    with col2:
+        mode = st.selectbox("Mode", ["full_cycle", "pre_only", "post_only", "question"])
+
+    query = st.text_area(
+        "Research Query",
+        value="Analyze upcoming earnings expectations, historical beat rate, and options-implied move",
+        height=80,
+    )
+
+    col1, col2 = st.columns(2)
+    with col1:
+        earnings_date = st.date_input("Earnings Date (optional)", value=None)
+    with col2:
+        async_mode = st.checkbox("Run in background", value=False)
+
+    submitted = st.form_submit_button("Run Research", type="primary", use_container_width=True)
+
+if submitted:
+    import requests
+
     payload = {
+        "ticker": ticker.upper(),
         "query": query,
-        "years": years if years else None,
-        "quarters": quarters if quarters else None,
-        "agents": agents
+        "mode": mode,
+        "earnings_date": str(earnings_date) if earnings_date else None,
+        "async_mode": async_mode,
     }
-    st.write(f"Sending query with parameters: Years={years}, Quarters={quarters}")
-    
-    with st.spinner("Generating research report..."):
+
+    with st.spinner(f"Running {mode} analysis for {ticker.upper()}..."):
         try:
-            response = requests.post(f"{API_URL}/research", json=payload)
+            response = requests.post(f"{API_URL}/research", json=payload, timeout=300)
             response.raise_for_status()
             result = response.json()
-            
-            # Display report sections
-            st.subheader("Research Report")
-            
-            if "content" in result:
-                st.markdown("### Comprehensive Analysis")
-                st.write(result["content"])
-            
-            if "historical_data" in result and use_rag:
-                st.markdown("### Historical Performance")
-                st.write(result["historical_data"]["content"])
-                
-            if "financial_metrics" in result and use_snowflake:
-                st.markdown("### Financial Metrics")
-                st.write(result["financial_metrics"]["content"])
-                
-                # Display chart if available with better error handling
-                if "chart" in result["financial_metrics"] and result["financial_metrics"]["chart"]:
-                    chart_path = result["financial_metrics"]["chart"]
-                    try:
-                        # Try to display the image
-                        st.image(chart_path)
-                    except Exception as e:
-                        st.error(f"Error displaying chart: {str(e)}")
-                        st.write(f"Chart path was: {chart_path}")
-                    
-            if "latest_insights" in result and use_websearch:
-                st.markdown("### Latest Insights & Trends")
-                st.write(result["latest_insights"]["content"])
-                
-                # Display sources if available
-                if "sources" in result["latest_insights"] and result["latest_insights"]["sources"]:
-                    st.markdown("#### Sources")
-                    for source in result["latest_insights"]["sources"]:
-                        st.write(source)
-                
+
+            if result.get("status") == "running":
+                st.info(f"Research queued. Run ID: {result['run_id']}")
+                st.markdown("Check the **Report Viewer** page to track progress.")
+            else:
+                st.success(f"Research complete! Run ID: {result['run_id']}")
+                st.session_state["latest_report"] = result
+
+                if result.get("synthesis"):
+                    st.subheader("Synthesis")
+                    st.markdown(result["synthesis"]["response"])
+
+                    with st.expander("Agent Details"):
+                        for key in ["pre_earnings", "live_earnings", "transcript_analysis", "post_earnings"]:
+                            agent_data = result.get(key)
+                            if agent_data:
+                                st.markdown(f"**{key.replace('_', ' ').title()}** (confidence: {agent_data['confidence']:.0%})")
+                                st.markdown(agent_data["response"][:500] + "...")
+                                st.markdown("---")
+        except requests.exceptions.ConnectionError:
+            st.error("Cannot connect to the API server. Make sure the backend is running.")
         except Exception as e:
-            st.error(f"Error generating report: {str(e)}")
+            st.error(f"Error: {str(e)}")
+
+st.markdown("---")
+st.subheader("Watchlist")
+
+try:
+    import requests
+    wl_response = requests.get(f"{API_URL}/watchlist", timeout=5)
+    if wl_response.ok:
+        watchlist = wl_response.json()
+        if watchlist:
+            for item in watchlist:
+                col1, col2, col3 = st.columns([1, 2, 1])
+                with col1:
+                    st.markdown(f"**{item['ticker']}**")
+                with col2:
+                    st.markdown(item.get("next_earnings", "—"))
+                with col3:
+                    if st.button("Remove", key=f"rm_{item['ticker']}"):
+                        requests.delete(f"{API_URL}/watchlist/{item['ticker']}")
+                        st.rerun()
+        else:
+            st.info("No tickers in watchlist. Add tickers from the Company Profile page.")
+except Exception:
+    st.info("Watchlist unavailable — backend not connected.")

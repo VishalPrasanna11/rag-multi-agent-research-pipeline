@@ -1,5 +1,22 @@
+version: "3.9"
+
 services:
-  # Frontend service
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONPATH=/app/backend
+    depends_on:
+      - redis
+    volumes:
+      - charts_data:/app/charts
+
   frontend:
     build:
       context: .
@@ -10,36 +27,28 @@ services:
       - API_URL=http://backend:8000
     depends_on:
       - backend
-    volumes:
-      - ./frontend:/app
-      - shared_data:/app/shared
-  
-  # Backend service
-  backend:
+
+  worker:
     build:
       context: .
-      dockerfile: docker/Dockerfile.backend
-    ports:
-      - "8000:8000"
+      dockerfile: docker/Dockerfile.worker
+    env_file:
+      - .env
     environment:
-      - PINECONE_API_KEY=${PINECONE_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - TAVILY_API_KEY=${TAVILY_API_KEY}
-      - SNOWFLAKE_USER=${SNOWFLAKE_USER}
-      - SNOWFLAKE_PASSWORD=${SNOWFLAKE_PASSWORD}
-      - SNOWFLAKE_ACCOUNT=${SNOWFLAKE_ACCOUNT}
-      - SNOWFLAKE_WAREHOUSE=${SNOWFLAKE_WAREHOUSE}
-      - SNOWFLAKE_DATABASE=${SNOWFLAKE_DATABASE}
-      - SNOWFLAKE_SCHEMA=${SNOWFLAKE_SCHEMA}
-      - SNOWFLAKE_ROLE=${SNOWFLAKE_ROLE}
-      - SNOWFLAKE_STAGE=${SNOWFLAKE_STAGE}
-      - CHARTS_DIR=/app/shared
-      - NVDA_CSV_PATH=/app/NVDA_5yr_history_20250407.csv
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONPATH=/app/backend
+    depends_on:
+      - redis
     volumes:
-      - ./backend:/app
-      - shared_data:/app/shared
+      - charts_data:/app/charts
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
 
 volumes:
-  shared_data:
+  redis_data:
+  charts_data:
