@@ -72,6 +72,8 @@ class Settings(BaseSettings):
     LANGFUSE_SECRET_KEY: str = ""
     OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
 
+    ADMIN_SUBS: str = ""  # comma-separated JWT subs allowed to see global metrics
+
     # Rate limits (per identity)
     RUNS_PER_HOUR: int = 20
     ANON_RUNS_PER_HOUR: int = 5

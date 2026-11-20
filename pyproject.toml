@@ -32,6 +32,7 @@ dependencies = [
   "tavily-python==0.8.5",
   "pinecone==10.3.0",
   "opentelemetry-sdk==1.45.2",
+  "opentelemetry-exporter-otlp-proto-http==1.45.2",
   "sentry-sdk==2.75.0",
   "python-multipart==0.0.34",
   "cachetools==8.0.2",

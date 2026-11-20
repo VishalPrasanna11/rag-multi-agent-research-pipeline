@@ -30,6 +30,7 @@ from app.gather import GatherCtx, attach_transcript, cutoff_dt, gather_all
 from app.llm import LLMRouter
 from app.logging import get_logger, redact, run_id_var
 from app.market import NY
+from app.observability import span
 from app.providers import NotFound, Providers, get_providers
 from app.schemas import (
     AgentOutput,
@@ -559,6 +560,7 @@ def save_node(state: RunState, config: RunnableConfig) -> dict[str, Any]:
             usage.cost_usd,
         )
         run.status = "awaiting_review"
+        run.finished_at = utcnow()  # research is done; review time is not run latency
         pred = A.base_rate_prediction(ctx)
         if pred and ctx.event and ctx.event.date and not run.fixture:
             for kind, val in pred.items():
@@ -628,18 +630,29 @@ def apply_review(run_id: str, report_id: str, decision: str, notes: str | None, 
 # ---------------------------------------------------------------- graph
 
 
+def _traced(name: str, fn: Any) -> Any:
+    def wrapped(state: RunState, config: RunnableConfig) -> dict[str, Any]:
+        with span(
+            f"node.{name}", run_id=state.get("run_id"), ticker=state.get("ticker"), mode=state.get("mode")
+        ):
+            return fn(state, config)  # type: ignore[no-any-return]
+
+    wrapped.__name__ = getattr(fn, "__name__", name)
+    return wrapped
+
+
 @lru_cache
 def build_graph() -> Any:
     g = StateGraph(RunState)
-    g.add_node("scope", scope_node)
-    g.add_node("gather", gather_node)
-    g.add_node("analyze", analyze_node)
-    g.add_node("brief", brief_node)
-    g.add_node("critique", critique_node)
-    g.add_node("refine", refine_node)
-    g.add_node("save", save_node)
-    g.add_node("review", review_node)
-    g.add_node("finalize", finalize_node)
+    g.add_node("scope", _traced("scope", scope_node))
+    g.add_node("gather", _traced("gather", gather_node))
+    g.add_node("analyze", _traced("analyze", analyze_node))
+    g.add_node("brief", _traced("brief", brief_node))
+    g.add_node("critique", _traced("critique", critique_node))
+    g.add_node("refine", _traced("refine", refine_node))
+    g.add_node("save", _traced("save", save_node))
+    g.add_node("review", _traced("review", review_node))
+    g.add_node("finalize", _traced("finalize", finalize_node))
     g.add_edge(START, "scope")
     g.add_edge("scope", "gather")
     g.add_edge("gather", "analyze")

@@ -53,6 +53,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             traces_sample_rate=0.1,
             send_default_pii=False,
         )
+    from app.observability import setup_tracing
+
+    setup_tracing()
     init_db()
     _recover_orphaned_runs()
     log.info(

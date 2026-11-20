@@ -1,54 +1,29 @@
-version: "3.9"
-
+# Local full stack: API + worker + Postgres + Redis. `docker compose up --build`, then open http://localhost:8000
 services:
-  backend:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.backend
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
+  api:
+    build: .
+    env_file: [.env]
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - PYTHONPATH=/app/backend
-    depends_on:
-      - redis
-    volumes:
-      - charts_data:/app/charts
-
-  frontend:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.frontend
-    ports:
-      - "8501:8501"
-    environment:
-      - API_URL=http://backend:8000
-    depends_on:
-      - backend
-
+      ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/earnings_intel
+      REDIS_URL: redis://redis:6379/0
+    ports: ["8000:8000"]
+    depends_on: { db: { condition: service_healthy }, redis: { condition: service_started } }
   worker:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.worker
-    env_file:
-      - .env
+    build: .
+    env_file: [.env]
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - PYTHONPATH=/app/backend
-    depends_on:
-      - redis
-    volumes:
-      - charts_data:/app/charts
-
+      ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/earnings_intel
+      REDIS_URL: redis://redis:6379/0
+    command: celery --workdir backend -A app.jobs worker --beat --loglevel=INFO --concurrency=2
+    depends_on: { db: { condition: service_healthy }, redis: { condition: service_started } }
+  db:
+    image: postgres:16.10
+    environment: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: earnings_intel }
+    healthcheck: { test: ["CMD", "pg_isready", "-U", "postgres"], interval: 3s, retries: 20 }
+    volumes: [pgdata:/var/lib/postgresql/data]
   redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-
+    image: redis:7.4.6-alpine
 volumes:
-  redis_data:
-  charts_data:
+  pgdata:

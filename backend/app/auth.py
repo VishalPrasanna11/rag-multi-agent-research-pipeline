@@ -98,7 +98,7 @@ async def current_identity(request: Request, response: Response) -> Identity:
             max_age=60 * 60 * 24 * 365,
             httponly=True,
             samesite="lax",
-            secure=s.is_production,
+            secure=request.url.scheme == "https",  # Heroku forwards https via --proxy-headers
         )
     ident = Identity(sub=str(anon_id), anonymous=True)
     _ensure_user(ident)

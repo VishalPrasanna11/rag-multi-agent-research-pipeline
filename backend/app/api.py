@@ -563,6 +563,45 @@ def report_markdown(rep: Report) -> str:
     return "\n".join(out)
 
 
+# ---------------------------------------------------------------- metrics
+
+
+@router.get("/metrics", tags=["meta"])
+def metrics(
+    ident: Identity = Depends(current_identity), days: int = Query(30, ge=1, le=365)
+) -> dict[str, Any]:
+    """Run latency/cost/failure stats: the caller's own runs, or all runs for admins (ADMIN_SUBS)."""
+    s = get_settings()
+    admin = not ident.anonymous and ident.sub in {x.strip() for x in s.ADMIN_SUBS.split(",") if x.strip()}
+    since = datetime.now(UTC) - timedelta(days=days)
+    with session_scope() as sess:
+        q = select(Run).where(Run.created_at >= since)
+        if not admin:
+            q = q.where(Run.user_id == ident.sub)
+        runs = list(sess.scalars(q).all())
+    by_mode: dict[str, Any] = {}
+    for mode in sorted({r.mode for r in runs}):
+        rs = [r for r in runs if r.mode == mode]
+        lat = sorted(
+            (r.finished_at - r.started_at).total_seconds() for r in rs if r.finished_at and r.started_at
+        )
+        live = [r for r in rs if not r.fixture]
+
+        def pct(p: float, xs: list[float] = lat) -> float | None:
+            return round(xs[min(len(xs) - 1, int(p * len(xs)))], 1) if xs else None
+
+        by_mode[mode] = {
+            "runs": len(rs),
+            "failed": sum(1 for r in rs if r.status == "failed"),
+            "latency_p50_s": pct(0.5),
+            "latency_p95_s": pct(0.95),
+            "avg_cost_usd": round(sum(r.cost_usd for r in live) / len(live), 4) if live else None,
+            "total_cost_usd": round(sum(r.cost_usd for r in live), 4),
+            "avg_tokens": round(sum(r.tokens_in + r.tokens_out for r in live) / len(live)) if live else None,
+        }
+    return {"scope": "all" if admin else "mine", "days": days, "runs": len(runs), "by_mode": by_mode}
+
+
 # ---------------------------------------------------------------- watchlist, notifications, preferences
 
 

@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from app.config import Settings, get_settings
 from app.logging import get_logger, redact
+from app.observability import span
 
 log = get_logger("llm")
 
@@ -125,7 +126,12 @@ class LLMRouter:
                 continue
             try:
                 start = time.perf_counter()
-                obj, tin, tcached, tout = self._call(m, system, user, schema, max_output_tokens, cache_key)
+                with span("llm.call", task=task, model=m, schema=schema.__name__) as sp:
+                    obj, tin, tcached, tout = self._call(
+                        m, system, user, schema, max_output_tokens, cache_key
+                    )
+                    sp.set_attribute("tokens_in", tin)
+                    sp.set_attribute("tokens_out", tout)
                 with self._lock:
                     cost = self.usage.add(task, m, tin, tcached, tout)
                 log.info(
