@@ -23,6 +23,19 @@ class SnowflakeClient:
             )
         return self._conn
 
+    def execute(self, query: str, params: Optional[dict] = None):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(query, params)
+            conn.commit()
+            return cursor
+        except Exception as e:
+            logger.error(f"Snowflake execute error: {e}")
+            raise
+        finally:
+            cursor.close()
+
     def execute_query(self, query: str, params: Optional[dict] = None) -> pd.DataFrame:
         conn = self._get_connection()
         try:
