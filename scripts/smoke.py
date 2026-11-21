@@ -38,7 +38,7 @@ def main() -> int:
     check(
         "health", r.status_code == 200 and hj.get("checks", {}).get("database") == "ok", json.dumps(hj)[:200]
     )
-    check("request_id", r.headers.get("x-request-id", "").startswith("req_"))
+    check("request_id", len(r.headers.get("x-request-id", "")) >= 8)  # ours (req_…) or the router's, propagated
     meta = c.get(f"{base}/api/v1/meta").json()
     check("spa", '<div id="root">' in c.get(f"{base}/").text)
     e = c.get(f"{base}/api/v1/runs/run_nope", headers=h)
