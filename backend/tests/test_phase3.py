@@ -64,3 +64,42 @@ def test_retrieval_ranks_relevant_passage() -> None:
     )
     hits = retrieve(ctx, "export restrictions impact revenue")  # type: ignore[arg-type]
     assert hits and hits[0][0] == "transcript"
+
+
+def test_guidance_with_plus_minus_is_kept() -> None:
+    from datetime import UTC, datetime
+
+    from app.analysts import ExtractedGuidance, Extraction, add_extraction_facts
+    from app.facts import FactStore
+    from app.schemas import SourceKind
+
+    doc = "Outlook\nRevenue is expected to be $65.0 billion, plus or minus 2%.\n"
+    st = FactStore(datetime(2026, 11, 20, tzinfo=UTC))
+    cid = st.cite(SourceKind.SEC_FILING, "EX-99.1", datetime(2026, 11, 17, tzinfo=UTC))
+    ex = Extraction(
+        metrics=[],
+        guidance=[
+            ExtractedGuidance(
+                metric="Revenue",
+                low=63.7e9,
+                high=66.3e9,
+                unit="USD",
+                period="Q4",
+                quote="Revenue is expected to be $65.0 billion, plus or minus 2%.",
+            )
+        ],
+        guidance_change="not_stated",
+        guidance_change_quote="",
+        kpis_disclosed=[],
+        tone="balanced",
+        tone_quotes=[],
+        injection_detected=False,
+    )
+    add_extraction_facts(st, ex, doc, cid, "pr")
+    assert st.num("pr.guide_revenue") == 65.0e9
+
+
+def test_unknowns_grouped_so_transcript_gap_is_visible(client: TestClient) -> None:
+    rep = _report(client, ticker="NVDA", mode="post_only", as_of="2026-11-20")
+    u = " ".join(rep["brief"]["unknowns"]).lower()
+    assert "transcript" in u and "finnhub" in u

@@ -1,0 +1,52 @@
+2026-11-20 22:05:15 [info     ] llm_call                       cost_usd=0.01993 fallback=False model=gpt-6.2-sol ms=9433 task=judge tokens_cached=0 tokens_in=7216 tokens_out=550
+PASS big_beat_pfe_20261103                      39s $0.069 judge.groundedness judge.decision_usefulness
+2026-11-20 22:05:31 [info     ] llm_call                       cost_usd=0.0224 fallback=False model=gpt-6.2-sol ms=8438 task=judge tokens_cached=0 tokens_in=8608 tokens_out=518
+PASS big_beat_ba_20261027                       57s $0.089 judge.groundedness judge.decision_usefulness
+2026-11-20 22:05:33 [info     ] llm_call                       cost_usd=0.02811 fallback=False model=gpt-6.2-sol ms=9276 task=judge tokens_cached=0 tokens_in=10984 tokens_out=614
+PASS big_beat_intc_20261029                     59s $0.095 judge.groundedness judge.decision_usefulness
+2026-11-20 22:06:20 [info     ] llm_call                       cost_usd=0.02416 fallback=False model=gpt-6.2-sol ms=9160 task=judge tokens_cached=0 tokens_in=8698 tokens_out=676
+PASS big_beat_meta_20261021                     55s $0.091 judge.groundedness judge.decision_usefulness
+2026-11-20 22:06:27 [info     ] llm_call                       cost_usd=0.02303 fallback=False model=gpt-6.2-sol ms=9167 task=judge tokens_cached=0 tokens_in=8494 tokens_out=604
+PASS big_miss_googl_20261028                    47s $0.085 judge.decision_usefulness
+2026-11-20 22:07:06 [info     ] llm_call                       cost_usd=0.02229 fallback=False model=gpt-6.2-sol ms=9044 task=judge tokens_cached=0 tokens_in=8234 tokens_out=582
+PASS big_miss_meta_20260729                     84s $0.153 budget.cost judge.groundedness judge.decision_usefulness
+2026-11-20 22:07:46 [info     ] llm_call                       cost_usd=0.02444 fallback=False model=gpt-6.2-sol ms=10484 task=judge tokens_cached=0 tokens_in=8915 tokens_out=661
+PASS big_miss_tsla_20260722                     76s $0.145 judge.groundedness judge.decision_usefulness
+2026-11-20 22:07:52 [info     ] llm_call                       cost_usd=0.02174 fallback=False model=gpt-6.2-sol ms=9075 task=judge tokens_cached=0 tokens_in=8141 tokens_out=546
+PASS big_miss_ba_20260422                       76s $0.145 judge.groundedness judge.decision_usefulness
+2026-11-20 22:08:25 [info     ] llm_call                       cost_usd=0.02391 fallback=False model=gpt-6.2-sol ms=10655 task=judge tokens_cached=0 tokens_in=8530 tokens_out=685
+PASS in_line_lulu_20260604                      69s $0.127 judge.groundedness judge.decision_usefulness
+2026-11-20 22:08:54 [info     ] llm_call                       cost_usd=0.02384 fallback=False model=gpt-6.2-sol ms=9506 task=judge tokens_cached=0 tokens_in=8989 tokens_out=586
+PASS in_line_wmt_20260521                       59s $0.088 judge.groundedness
+2026-11-20 22:08:55 [info     ] llm_call                       cost_usd=0.02527 fallback=False model=gpt-6.2-sol ms=8584 task=judge tokens_cached=0 tokens_in=9774 tokens_out=572
+PASS in_line_hd_20260519                        54s $0.088 judge.groundedness
+2026-11-20 22:09:23 [info     ] llm_call                       cost_usd=0.02396 fallback=False model=gpt-6.2-sol ms=8833 task=judge tokens_cached=0 tokens_in=9350 tokens_out=526
+PASS beat_but_fell_tsla_20261021                49s $0.089 judge.groundedness judge.decision_usefulness
+2026-11-20 22:10:00 [info     ] llm_call                       cost_usd=0.02463 fallback=False model=gpt-6.2-sol ms=8247 task=judge tokens_cached=0 tokens_in=9426 tokens_out=578
+PASS beat_but_fell_nke_20261001                 57s $0.089 judge.groundedness judge.decision_usefulness
+2026-11-20 22:10:17 [info     ] llm_call                       cost_usd=0.0213 fallback=False model=gpt-6.2-sol ms=7781 task=judge tokens_cached=0 tokens_in=8088 tokens_out=512
+PASS pre_lookahead_amd_20261103                 46s $0.064 judge.groundedness
+2026-11-20 22:10:28 [info     ] llm_call                       cost_usd=0.02243 fallback=False model=gpt-6.2-sol ms=9221 task=judge tokens_cached=0 tokens_in=8031 tokens_out=637
+PASS beat_but_fell_nflx_20261020                84s $0.130 judge.groundedness judge.decision_usefulness
+2026-11-20 22:10:57 [info     ] llm_call                       cost_usd=0.02028 fallback=False model=gpt-6.2-sol ms=7437 task=judge tokens_cached=0 tokens_in=7705 tokens_out=487
+PASS pre_lookahead_aapl_20261102                49s $0.062 judge.groundedness
+2026-11-20 22:11:12 [info     ] llm_call                       cost_usd=0.01571 fallback=False model=gpt-6.2-sol ms=6862 task=judge tokens_cached=0 tokens_in=5676 tokens_out=436
+PASS pre_lookahead_xom_20261030                 48s $0.051 judge.groundedness
+2026-11-20 22:11:24 [info     ] llm_call                       cost_usd=0.02248 fallback=False model=gpt-6.2-sol ms=8163 task=judge tokens_cached=0 tokens_in=8574 tokens_out=533
+PASS pre_lookahead_amzn_20261029                48s $0.060 judge.groundedness
+2026-11-20 22:11:57 [info     ] llm_call                       cost_usd=0.02405 fallback=False model=gpt-6.2-sol ms=8895 task=judge tokens_cached=0 tokens_in=9168 tokens_out=571
+PASS pre_lookahead_msft_20261028                51s $0.062 judge.groundedness judge.completeness
+2026-11-20 22:12:17 [info     ] llm_call                       cost_usd=0.02142 fallback=False model=gpt-6.2-sol ms=8051 task=judge tokens_cached=0 tokens_in=8153 tokens_out=511
+PASS pre_lookahead_cmg_20261028                 57s $0.057 judge.groundedness
+2026-11-20 22:12:51 [info     ] llm_call                       cost_usd=0.02414 fallback=False model=gpt-6.2-sol ms=8390 task=judge tokens_cached=0 tokens_in=9259 tokens_out=562
+PASS quality_orcl_20260910                      79s $0.126 judge.groundedness judge.decision_usefulness
+2026-11-20 22:13:01 [info     ] llm_call                       cost_usd=0.02302 fallback=False model=gpt-6.2-sol ms=8779 task=judge tokens_cached=0 tokens_in=8670 tokens_out=568
+PASS quality_avgo_20260902                      55s $0.087 judge.groundedness
+2026-11-20 22:13:23 [info     ] llm_call                       cost_usd=0.02094 fallback=False model=gpt-6.2-sol ms=9068 task=judge tokens_cached=0 tokens_in=7553 tokens_out=583
+PASS quality_crm_20260826                       57s $0.080 judge.groundedness
+2026-11-20 22:14:12 [info     ] llm_call                       cost_usd=0.02384 fallback=False model=gpt-6.2-sol ms=8688 task=judge tokens_cached=0 tokens_in=9053 tokens_out=573
+PASS full_aapl                                  72s $0.149 judge.groundedness judge.decision_usefulness
+2026-11-20 22:14:33 [info     ] llm_call                       cost_usd=0.02426 fallback=False model=gpt-6.2-sol ms=10041 task=judge tokens_cached=0 tokens_in=8752 tokens_out=676
+PASS full_jpm                                   82s $0.151 judge.groundedness judge.completeness judge.decision_usefulness
+2026-11-20 22:14:41 [info     ] llm_call                       cost_usd=0.02341 fallback=False model=gpt-6.2-sol ms=9180 task=judge tokens_cached=0 tokens_in=8712 tokens_out=599
+PASS full_xom                                   69s $0.141 judge.groundedness judge.decision_usefulness

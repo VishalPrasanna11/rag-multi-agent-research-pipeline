@@ -346,7 +346,11 @@ def add_extraction_facts(
             mid = (g.low + g.high) / 2
         elif g.low is not None or g.high is not None:
             mid = g.low if g.low is not None else g.high
-        if mid is None or not _number_in_quote(g.low if g.low is not None else mid, g.unit, g.quote):
+        # "Revenue is expected to be $65.0 billion, plus or minus 2%" -> the stated value is the midpoint, while
+        # the model may report computed endpoints; accept if any of low / high / midpoint is in the quote.
+        if mid is None or not any(
+            v is not None and _number_in_quote(v, g.unit, g.quote) for v in (g.low, g.high, mid)
+        ):
             dropped += 1
             continue
         cid = store.cite(
@@ -1007,12 +1011,7 @@ def write_brief(
         what_would_change_view=[render(x, ctx.store.facts)[0] for x in d.what_would_change_view[:5]],
         questions_for_call=[render(x, ctx.store.facts)[0] for x in d.questions_for_call[:6]],
         key_risks=[render(x, ctx.store.facts)[0] for x in d.key_risks[:5]],
-        unknowns=list(dict.fromkeys(ctx.unknowns))[:10]
-        + [
-            f"{f.label}: needs {f.needs}"
-            for f in ctx.store.facts.values()
-            if f.status == "unavailable" and f.needs
-        ][:8],
+        unknowns=_unknowns(ctx),
         freshness=freshness,
         confidence=confidence_for(ctx, mode),
         disclaimer=DISCLAIMER,
@@ -1024,6 +1023,20 @@ def write_brief(
         md, _, _ = render(d.answer, ctx.store.facts)
         answer = Section(id="answer", title="Answer", markdown=md)
     return brief, answer, how
+
+
+def _unknowns(ctx: GatherCtx) -> list[str]:
+    """Every gap, compactly: run-level notes first, then one line per missing source (not per fact), so a
+    long list of consensus details can't crowd out e.g. the missing transcript."""
+    by_need: dict[str, list[str]] = {}
+    for f in ctx.store.facts.values():
+        if f.status == "unavailable" and f.needs:
+            by_need.setdefault(f.needs, []).append(f.label)
+    grouped = [
+        f"{', '.join(labels[:4])}{' and more' if len(labels) > 4 else ''}: needs {need}"
+        for need, labels in by_need.items()
+    ]
+    return list(dict.fromkeys(ctx.unknowns))[:10] + grouped[:12]
 
 
 def _validated() -> tuple[bool, str]:
