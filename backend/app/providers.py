@@ -588,6 +588,8 @@ XBRL_TAGS = [
     "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
     "IncomeTaxExpenseBenefit",
     "NetIncomeLoss",
+    "NetIncomeLossAvailableToCommonStockholdersBasic",
+    "ProfitLoss",
     "EarningsPerShareDiluted",
     "WeightedAverageNumberOfDilutedSharesOutstanding",
     "NetCashProvidedByUsedInOperatingActivities",
@@ -619,7 +621,8 @@ def prune_company_facts(d: dict[str, Any]) -> dict[str, Any]:
                 else ("USD" if "USD" in units else next(iter(units), None))
             )
             if u:
-                out["facts"][tag] = {"unit": u, "values": units[u][-80:]}
+                vals = sorted(units[u], key=lambda r: (r.get("end", ""), r.get("filed", "")))
+                out["facts"][tag] = {"unit": u, "values": vals[-100:]}  # newest periods, chronological
     dei = d.get("facts", {}).get("dei", {})
     if "EntityCommonStockSharesOutstanding" in dei:
         units = dei["EntityCommonStockSharesOutstanding"]["units"]

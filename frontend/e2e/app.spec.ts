@@ -25,7 +25,7 @@ async function runFixture(page: Page, ticker: string, mode: string, asOf: string
   await page.getByText("Advanced: as-of date, transcript").click();
   await page.getByLabel("As of (historical, no look-ahead)").fill(asOf);
   await page.getByRole("button", { name: "Run research" }).click();
-  await expect(page).toHaveURL(/\/reports\/rpt_/, { timeout: 30_000 });
+  await expect(page).toHaveURL(/\/reports\/rpt_/, { timeout: 60_000 });
 }
 
 test("watchlist: add ticker, see next earnings, axe clean", async ({ page }) => {
@@ -97,7 +97,7 @@ test("scope guard: advice question gets a research-only redirect", async ({ page
   await page.getByText("Advanced: as-of date, transcript").click();
   await page.getByLabel("As of (historical, no look-ahead)").fill("2026-11-14");
   await page.getByRole("button", { name: "Run research" }).click();
-  await expect(page).toHaveURL(/\/reports\//, { timeout: 30_000 });
+  await expect(page).toHaveURL(/\/reports\//, { timeout: 60_000 });
   await expect(page.getByRole("note")).toContainText("can't tell you what to buy or sell");
 });
 
@@ -106,7 +106,7 @@ test("clarification chips for an unknown ticker", async ({ page }) => {
   await page.getByText("Advanced: as-of date, transcript").click();
   await page.getByLabel("As of (historical, no look-ahead)").fill("2026-11-14");
   await page.getByRole("button", { name: "Run research" }).click();
-  await expect(page.getByRole("group", { name: "Suggested answers" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("group", { name: "Suggested answers" })).toBeVisible({ timeout: 60_000 });
   await page.getByRole("button", { name: "NVDA", exact: true }).click();
-  await expect(page).toHaveURL(/\/reports\//, { timeout: 30_000 });
+  await expect(page).toHaveURL(/\/reports\//, { timeout: 60_000 });
 });

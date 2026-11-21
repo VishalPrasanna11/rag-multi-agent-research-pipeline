@@ -58,6 +58,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     setup_tracing()
     init_db()
     _recover_orphaned_runs()
+    from app.validation import load_predictions
+
+    load_predictions()
     log.info(
         "startup",
         version=APP_VERSION,

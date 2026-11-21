@@ -444,6 +444,25 @@ def refine_node(state: RunState, config: RunnableConfig) -> dict[str, Any]:
     return out
 
 
+def _evidence(ctx: GatherCtx, query: str | None) -> dict[str, str]:
+    """Excerpts given to writers/critic, persisted for reviewers and evaluators. Uploaded transcripts are
+    excluded (only verified non-answer quotes are kept)."""
+    lim = {
+        "press_release": 6000,
+        "cfo_commentary": 4000,
+        "risk_added": 5000,
+        "risk_removed": 3000,
+        "news": 3000,
+        "evasive": 5000,
+    }
+    out = {k: ctx.docs[k][:n] for k, n in lim.items() if ctx.docs.get(k)}
+    if query:
+        for i, (role, _cid, text) in enumerate(A.retrieve(ctx, query)):
+            if role != "transcript":
+                out[f"retrieved_{i}_{role}"] = text[:1500]
+    return out
+
+
 def save_node(state: RunState, config: RunnableConfig) -> dict[str, Any]:
     svc = _svc(config)
     ctx = _restore_ctx(state, svc)
@@ -517,6 +536,7 @@ def save_node(state: RunState, config: RunnableConfig) -> dict[str, Any]:
             citations=ctx.store.citations,
             critique_history=[CritiqueRound.model_validate(c) for c in state.get("critique") or []],
             review_status="pending",
+            evidence=_evidence(ctx, state.get("query")),
             notices=[ADVICE_NOTICE] if state.get("intent") == "advice" else [],
             fixture=run.fixture,
             cost_usd=round(usage.cost_usd, 5),

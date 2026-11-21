@@ -736,13 +736,29 @@ def reported_financials(ctx: GatherCtx) -> None:
                 "revenue - cost of revenue",
             )
     _oi, _ = add_line("print.operating_income", "Operating income", ["OperatingIncomeLoss"])
-    _pti, _ = add_line(
+    pti, _ = add_line(
         "print.pretax_income",
         "Pre-tax income",
         ["IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"],
     )
-    _tax, _ = add_line("print.tax", "Income tax", ["IncomeTaxExpenseBenefit"])
-    _ni, _ = add_line("print.net_income", "Net income", ["NetIncomeLoss"])
+    tax, _ = add_line("print.tax", "Income tax", ["IncomeTaxExpenseBenefit"])
+    ni, _ = add_line(
+        "print.net_income",
+        "Net income",
+        ["NetIncomeLoss", "NetIncomeLossAvailableToCommonStockholdersBasic", "ProfitLoss"],
+    )
+    if pti is None and ni is not None and tax is not None:  # some filers stopped tagging pre-tax income
+        for sfx in ("", "_py"):
+            n_, t_ = ctx.store.num("print.net_income" + sfx), ctx.store.num("print.tax" + sfx)
+            if n_ is not None and t_ is not None:
+                ctx.store.derive(
+                    "print.pretax_income" + sfx,
+                    "Pre-tax income (net income + tax)",
+                    n_ + t_,
+                    "USD",
+                    ["print.net_income" + sfx, "print.tax" + sfx],
+                    "net income + income tax",
+                )
     _eps, _ = add_line("print.eps_diluted_gaap", "GAAP diluted EPS", ["EarningsPerShareDiluted"], "USD/share")
     _sh, _ = add_line(
         "print.diluted_shares", "Diluted shares", ["WeightedAverageNumberOfDilutedSharesOutstanding"], "count"

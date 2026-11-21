@@ -169,6 +169,7 @@ class DecisionBrief(Model):
     confidence: Confidence
     disclaimer: str = DISCLAIMER
     validated: bool = False  # True only for claims the back-test supports
+    validation_note: str = ""
 
 
 class TimeOfDay(StrEnum):
@@ -228,6 +229,7 @@ class Report(Model):
     review_status: Literal["pending", "approved", "rejected", "changes_requested", "not_required"] = "pending"
     fixture: bool = False
     notices: list[str] = Field(default_factory=list)
+    evidence: dict[str, str] = Field(default_factory=dict)  # document excerpts the writers saw (auditability)
     cost_usd: float = 0.0
     disclaimer: str = DISCLAIMER
     schema_version: str

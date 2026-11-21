@@ -158,7 +158,7 @@ function DecisionBrief({ r }: { r: Report }) {
           </div>
           <p className="mt-1 text-xs text-muted">
             Probabilities: {b.scenarios[0]?.probability_method === "base_rate" ? `this stock's past ${r.event.date_status === "reported" ? "post-earnings drift" : "day-1 reactions"}, shrunk toward 25/50/25 (n=${b.scenarios[0]?.base_rate_n})` : "heuristic"}.
-            {b.validated ? " Supported by the back-test." : " Unvalidated: not yet supported by the back-test."}
+            {" "}{b.validation_note || (b.validated ? "Supported by the back-test." : "Unvalidated: not yet supported by the back-test.")}
           </p>
         </div>
       </div>

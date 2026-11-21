@@ -90,6 +90,10 @@ class Api:
             self._tc.__enter__()
             self.c = self._tc
 
+    def warm_up(self) -> None:
+        """Establish ONE identity (anonymous cookie) before parallel runs share this client."""
+        self.c.get("/api/v1/me")
+
     def run(
         self, body: dict[str, Any], timeout: float
     ) -> tuple[str | None, list[dict[str, Any]], dict[str, Any]]:
@@ -104,6 +108,12 @@ class Api:
             with self.c.stream(
                 "GET", f"/api/v1/runs/{run_id}/events", headers={"Last-Event-ID": str(last)}
             ) as s:
+                if s.status_code >= 400:
+                    return (
+                        run_id,
+                        events,
+                        {"http_status": s.status_code, "body": {"error": {"code": "stream_http_error"}}},
+                    )
                 for line in s.iter_lines():
                     if line.startswith("data:"):
                         e = json.loads(line[5:])
@@ -356,9 +366,11 @@ def judge(rep: dict[str, Any], query: str | None) -> dict[str, Any] | None:
         [
             f"HEADLINE: {strip_tokens(b.get('headline', ''))}",
             "SETUP: " + " | ".join(strip_tokens(x) for x in b.get("setup", [])),
-            "SCENARIOS: "
+            "SCENARIOS (probabilities computed by code from this stock's past reactions; method and n shown; "
+            "narratives written by the model): "
             + " | ".join(
-                f"{s['name']} {s['probability']:.0%}: {strip_tokens(s['narrative'])}"
+                f"{s['name']} {s['probability']:.0%} [{s['probability_method']}, n={s.get('base_rate_n')}]: "
+                f"{strip_tokens(s['narrative'])}"
                 for s in b.get("scenarios", [])
             ),
             f"DISCLAIMER: {b.get('disclaimer', '')}",
@@ -371,7 +383,11 @@ def judge(rep: dict[str, Any], query: str | None) -> dict[str, Any] | None:
             "judge",
             JUDGE_SYSTEM,
             f"REQUEST: {rep['ticker']} {rep['mode']} {query or ''}\n\n"
-            f"CITED {facts_table(st, limit=220)}\n\nNOTE:\n{note[:20000]}",
+            f"CITED {facts_table(st, limit=220)}\n\nSOURCE EXCERPTS THE WRITERS SAW:\n"
+            + "\n".join(
+                f'<document role="{k}">\n{v}\n</document>' for k, v in (rep.get("evidence") or {}).items()
+            )[:16000]
+            + f"\n\nNOTE:\n{note[:20000]}",
             Scores,
             max_output_tokens=1200,
         )
@@ -410,6 +426,7 @@ def main() -> int:
     ap.add_argument("--parallel", type=int, default=3)
     a = ap.parse_args()
     api = Api(None if a.fixture else a.base_url, a.fixture)
+    api.warm_up()
     cases = load_cases(Path(a.cases), set(a.only.split(",")) if a.only else None, a.fixture)
     out_dir = Path(a.out)
     out_dir.mkdir(parents=True, exist_ok=True)
